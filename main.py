@@ -1,6 +1,14 @@
 from groq import generate_response
 import io
 import streamlit as st
+import torch 
+from diffusers import StableDiffusionPipeline 
+from PIL import Image
+import os
+blockedwords = [
+    'porn' , 'nude' , 'sexual' , 'rape', 'kill', 'bomb', 'terrorist'
+]
+
 
 MATH_PROMPT = """You are a Math Mastermind. For every math problem:
 1) Show step-by-step solution  2) Explain reasoning  3) Give alternate method if possible
@@ -143,8 +151,62 @@ def run_math_mastermind():
     st.markdown(html + "</div>", unsafe_allow_html=True)
 
 def run_safe_ai_image_generator():
-    pass
 
+ st.set_page_config(
+    page_title = 'ai image generator',
+    page_icon = '🫶',
+    layout = 'centered'
+)
+
+ st.title('ai image generator')
+ st.subheader('create a beautiful ai image using text prompts')
+ st.write(
+    'enter your imagination below and let ai generate an image for u')
+ prompt = st.text_area(
+     'enter your image prompt:',
+     placeholder = 'example: a beautiful sunset over mountains...',
+     height = 120
+ )
+ if st.button('generate image', use_container_width = True):
+    if not prompt.strip():
+         st.warning('pls enter an image prompt')
+    elif any(word in prompt.lower() for word in blockedwords) :
+        st.error('unsafe prompt')
+    else:
+        try:
+            with st.spinner('loading ai model and generating image...'):
+                pipe = load_model()
+                image = pipe(
+                    prompt,
+                    num_interference_steps = 20
+                    ).images[0]
+            st.success('image generated successfully')
+            st.image(
+                image,
+                caption = 'your ai generated image',
+                use_container_width = True
+            )
+            with open ('generated_image.png', 'rb') as file:
+                st.downloadbutton(
+                    label = 'downloaded image',
+                    data=file,
+                    filename = 'generated_image.png',
+                    mime='image/png',
+                    use_container_width = True
+                )
+        except Exception as e:
+            st.error(f'something went wrong: {e}')
+ st.divider()
+ st.caption('created with a lot of efforts')
+
+
+def load_model():
+    model_id = 'runwayml/stable-diffusion-v1-5'
+    pipe = StableDiffusionPipeline.from_pretrained(
+    model_id,
+    torch_dtype = torch.float32)
+    pipe = pipe.to('cpu')
+    return pipe
 
 def main():
     st.sidebar.title('choose ai feature')
